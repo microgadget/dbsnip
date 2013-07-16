@@ -1,33 +1,9 @@
 import groovy.sql.Sql
 import java.sql.SQLException
 
-textData = """
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-"""
-print textData.length()
+textSrc = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+textData = textSrc
 
 try {
     sql = Sql.newInstance(
@@ -37,13 +13,34 @@ try {
 
    doPrepare(sql)
 
+   sql.connection.autoCommit = false
+
    // batchsize は bulk insertする行数、1 にすると単純なinsert分を発行
    def batchsize = 10
    // batchpercommit は、コミットするまで何回bulk insertするかの数
    def batchpercommit = 4
    // commitcount は コミットする回数。
-   def commitcount = 1000
+   def commitcount = 10000
    // 全行数は、 batchsize * batchpercommit * commitcount になる。
+   if (this.args.size() > 0) {
+      batchsize = Integer.parseInt(this.args[0])
+   }
+   if (this.args.size() > 1) {
+      batchpercommit = Integer.parseInt(this.args[1])
+   }
+   if (this.args.size() > 2) {
+      commitcount = Integer.parseInt(this.args[2])
+   }
+   if (this.args.size() > 3) {
+      def units = Integer.parseInt(this.args[3])
+      textData = ""
+      for (int i = 0;i < units;++i) {
+        textData += textSrc
+      }
+   }
+
+   println "data length:" + textData.length()
+   println "batchsize: " + batchsize + ", batchpercommit: " + batchpercommit + ", commitcount: " + commitcount
 
    for (int i = 0;i < commitcount;++i) {
      for (int j = 0;j < batchpercommit;++j) {
@@ -60,21 +57,16 @@ try {
 def doInsert(sql, startindex, numrecs, makeError) {
 //  println "starting batch insert from index: " + startindex + ", batchsize: " + numrecs
 
-  if (numrecs <= 1) {
-    def eno = startindex
-    sql.execute("insert into emp1(empno, ename, job, sal, deptno) values (" + eno + ", 'name " + eno + "', '" + textData + "', " + (100 + eno) + ", 0)")
-  } else {
-    sql.withBatch(numrecs, "insert into emp1(empno, ename, job, sal, deptno) values (?, ?, ?, ?, ?)", { ps -> 
-	for (i = 0;i < numrecs;++i) {
-		def eno = i + startindex
-		ps.addBatch(eno, "name " + eno, textData, 100 + eno, 0)
-	}
+    sql.withBatch(numrecs, "insert into emp1(empno, ename, job, sal, deptno) values (?, ?, ?, ?, ?)", { ps ->
+        for (i = 0;i < numrecs;++i) {
+                def eno = i + startindex
+                ps.addBatch(eno, "name " + eno, textData, 100 + eno, 0)
+        }
     })
-  }
 }
 
 def doCommit(sql) {
-	sql.commit()
+        sql.commit()
 }
 
 
@@ -95,5 +87,3 @@ create table EMP1
 ''')
 
 }
-
-
