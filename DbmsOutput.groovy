@@ -1,3 +1,7 @@
+/**
+ *  just for memo purpose(should be removed lator).
+ * Copied from Oracle sample
+ */
 import java.sql.*;
 
 class DbmsOutput 
